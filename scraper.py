@@ -8,16 +8,12 @@ from bs4 import BeautifulSoup
 from typing import Any, Dict, Tuple
 from collections import OrderedDict
 from datetime import date
+from money import Money
 
 """ IDs of html elements """
 ID_PRODUCT_NAME = 'productTitle'
 ID_PRODUCT_PRICE = 'priceblock_ourprice'
 ID_PRODUCT_SELLER = 'bylineInfo'
-
-
-INVALID_PRICE = -1
-
-
 
 
 class Product(OrderedDict):
@@ -35,7 +31,6 @@ class AmazonScraper:
         self.headers = {'User-Agent': self.user_agent}
 
         self.products = self.load_products()
-        self.currency_rates = None
         
 
     def load_products(self):
@@ -64,41 +59,18 @@ class AmazonScraper:
             return ''
         pass
 
-    def get_price(self, soup) -> int:
+    def get_price(self, soup) -> 'Money':
         """
         Returns the price of the product.
         """
         try:
-            price, currency = soup.find(id=ID_PRODUCT_PRICE).get_text().strip().split()
-            price = int(float(price.translate(str.maketrans(',.','.,'))) * 100)
-            if currency != self.settings.currency:
-                price = self.convert_currency(price, currency, self.settings.currency)
-
-            #TODO: english number formatting
-            return int(float(price.translate(str.maketrans(',.','.,'))) * 100)
+            price = Money(*soup.find(id=ID_PRODUCT_PRICE).get_text().strip().split())
+            return price if price.currency == self.settings.currency else Money.convert_currency(price, self.settings.currency)
 
         except Exception as e:
-            print(e)
             #TODO(daniel) log
-            return INVALID_PRICE
+            return None
         pass
-
-    @staticmethod
-    def convert_currency(price: float, from_currency: str, to_currency: str) -> float:
-        #TODO(daniel) convert price to respective currency
-        # symbol_map = {
-
-
-        # }
-        # if not isinstance(self.currency_rates, CurrencyRates):
-        #     self.currency_rates = CurrencyRates()
-
-        # try:
-
-        # except KeyError:
-
-        # return c.get_rate(from_currency, to_currency) * price
-        return price
 
 
     def get_product(self, url: str) -> Dict[str, Any]:
@@ -140,7 +112,6 @@ class AmazonScraper:
 
     def get_date(self) -> str:
         """ Returns current date in the specified string format """
-        print(date.today().strftime(self.settings.date_format))
         return date.today().strftime(self.settings.date_format)
 
     @staticmethod
