@@ -2,11 +2,12 @@ import requests
 import os
 import sys
 import re
-import settings
+
 import json
 from bs4 import BeautifulSoup
 from typing import Any, Dict, Tuple
 from collections import OrderedDict
+from settings import Settings
 from datetime import date
 from money import Money
 
@@ -23,15 +24,8 @@ class Product(OrderedDict):
 class AmazonScraper:
 
     def __init__(self):
-        
-        # load application settings
-        self.settings = settings.Settings()
-
-        self.user_agent = 'MyApp/{} (Language=Python {}; Platform={})'.format(self.settings.version, sys.version.split()[0], os.uname().sysname)
-        self.headers = {'User-Agent': self.user_agent}
-
+        self.settings = Settings.load()
         self.products = self.load_products()
-        
 
     def load_products(self):
         try:
@@ -45,13 +39,13 @@ class AmazonScraper:
             json.dump(self.products, f)
 
 
-    def get_seller(self, soup) -> float:
+    def get_seller(self, soup: BeautifulSoup) -> float:
         try:
             return soup.find(id=ID_PRODUCT_SELLER).get_text().strip()
         except AttributeError:
             return ''
 
-    def get_name(self, soup) -> float:
+    def get_name(self, soup: BeautifulSoup) -> float:
         try:
             return soup.find(id=ID_PRODUCT_NAME).get_text().strip()
         
@@ -59,7 +53,7 @@ class AmazonScraper:
             return ''
         pass
 
-    def get_price(self, soup) -> 'Money':
+    def get_price(self, soup: BeautifulSoup) -> Money:
         """
         Returns the price of the product.
         """
@@ -73,9 +67,9 @@ class AmazonScraper:
         pass
 
 
-    def get_product(self, url: str) -> Dict[str, Any]:
+    def get_product(self, url: str):
         """ Adds a product or updates its information """
-        page = requests.get(url, headers=self.headers)
+        page = requests.get(url, headers=self.settings.headers)
         if page:
             soup = BeautifulSoup(page.content, 'html.parser')
 
@@ -89,9 +83,8 @@ class AmazonScraper:
         else:
             print("Could not get product information.")
             #TODO(daniel)  add logging
-            return
 
-    def add_product(self, asin: str, soup):
+    def add_product(self, asin: str, soup: BeautifulSoup):
         """ Fetches product properties from url and adds it to the tracked products """
         price = self.get_price(soup)
         self.products[asin] = Product(
@@ -101,9 +94,8 @@ class AmazonScraper:
             seller = self.get_seller(soup),
             hist   = OrderedDict({self.get_date():price})
         )
-        print(self.products[asin])
 
-    def update_product(self, asin: str, soup):
+    def update_product(self, asin: str, soup: BeautifulSoup):
         """ Fetches current price and updates price history of an already tracked product """
         price = self.get_price(soup)
         self.products[asin]['price'] = price
