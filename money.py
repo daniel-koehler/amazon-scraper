@@ -1,5 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Union
+from typing import Union, Dict, Any
 import requests
 import json
 import locale
@@ -89,6 +89,13 @@ class Money:
     @property
     def currency(self) -> Decimal:
         return self._currency
+
+    def as_dict(self):
+        return {'quantity': str(self._quantity), 'currency': str(self._currency)}
+
+    @classmethod
+    def from_dict(self, cls, d: Dict[str, Any]) -> 'Money':
+        return cls(d['quantity'], d['currency'])
 
     @staticmethod
     def _round(m: 'Money') -> 'Money':

@@ -22,22 +22,23 @@ class Product(OrderedDict):
         super().__init__(kwargs)
 
 class AmazonScraper:
-
+    """ Webscraper that collects and manages product data based on the url of a product page """
     def __init__(self):
         self.settings = Settings.load()
         self.products = self.load_products()
 
+    def store_products(self):
+        """ Serialization of tracked products """
+        with open(os.path.join(self.settings.db_path, self.settings.db_name), 'w', encoding='utf8') as f:
+            json.dump(self.products, f, ensure_ascii=False)
+
     def load_products(self):
+        """ Deserialization of tracked products """
         try:
             with open(os.path.join(self.settings.db_path, self.settings.db_name), 'r') as f:
                 return OrderedDict(json.load(f))
         except:
             return OrderedDict()
-
-    def store_products(self):
-        with open(os.path.join(self.settings.db_path, self.settings.db_name), 'w') as f:
-            json.dump(self.products, f)
-
 
     def get_seller(self, soup: BeautifulSoup) -> float:
         try:
@@ -53,13 +54,15 @@ class AmazonScraper:
             return ''
         pass
 
-    def get_price(self, soup: BeautifulSoup) -> Money:
+    def get_price(self, soup: BeautifulSoup) -> Dict[str, str]:
         """
         Returns the price of the product.
         """
         try:
             price = Money(*soup.find(id=ID_PRODUCT_PRICE).get_text().strip().split())
-            return price if price.currency == self.settings.currency else Money.convert_currency(price, self.settings.currency)
+            if price.currency == self.settings.currency:
+                price = Money.convert_currency(price, self.settings.currency)
+            return price.as_dict()
 
         except Exception as e:
             #TODO(daniel) log
